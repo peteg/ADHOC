@@ -1,0 +1,598 @@
+* Agenda
+
+ADHOC is a research project. As such it is sure to contain bugs and
+irritants. Here are some of these.
+
+Fix the Smullyan examples. Delete the ones we haven't done.
+
+weak_abortE might be broken: what is its semantics?
+ - delay one instant then test?
+
+NonDet:
+ - if we get a False predicate everything breaks
+ - add a test to ensure that we have at least one initial state.
+
+How many automata do we need per agent?
+ - the observation structure is the same ??
+ - ... but they end up different under bisimulation as the state
+   labels (truth of the formula) can be different.
+
+ - options:
+  - adapt hDFA to handle several bits per state, and somehow
+   make bisim make sense (copy the transition table?)
+  - simply maintain multiple DFAs while doing the DFS.
+
+What's happening with these nested agent things?
+
+How about when agents observe the output of kbpTests?
+ - ban it?
+ - top sort the kconds (fail if we can't) and ensure the algorithms
+   respect that?
+
+The arrows can probably use some optimisation
+ - associativity?
+ - how do we find out what's taking so long?
+ - not critical, but it would be good to get the memory use down.
+ - continuation transformation?
+
+Idea: Higher-order circuits
+ - it's a scheduling problem: how many copies of the circuit do we need?
+ - we can figure this out statically
+ - defunctionalise: either inline or introduce tags + muxes.
+ - add two arrows: abstract and apply
+  - can we show it forms a CCC?
+
+Where does Ross use WrappedArrow?
+
+Can determine whether an arrow is det or non-det statically.
+ - no need for fancy type trickery
+ - maybe the same thing for signal scoping?
+
+- think about bisim reduction
+ - feed in an initial partition?
+ - ask for the final partition as well as the reduced automaton?
+ - what's the payoff?
+  - saves space?
+   - still need to maintain a map from all visited states -> automaton states?
+  - does it converge more quickly?
+   - can't see how it could, the frontier never gets reduced.
+  - look at Ron's paper/LFCS and try to figure out what he thinks will happen
+
+Can we use the Boolean interface for Arrows?
+ - type would be "env ~> B (~>)"
+ - problem with quantification of env?
+  - try to track this down
+  - probably need to build GHC head to be sure
+Use Unicode symbols for now.
+
+ADHOC needs to export the pretty printer stuff.
+Pretty up the printing of witnesses and counter examples
+ - the user provides a function for printing states?
+ - reuse the RenderInState infrastructure
+ - include it in the model?
+ - print the probes - it's a start, but maybe not enough.
+ - indicate loops -- all traces have a single back edge, so just mark where it ends.
+Introduce a PrettyPrint module and condition what the library exports.
+
+Lock down what Circuits exports...
+
+Split Model into internal/public
+
+Use of the kbpTest bits in the same instant is really dangerous!
+ - maybe build a delay into kbpTest
+  - good, we can eliminate the delays in e.g. the MuddyChildren, smaller model
+ - implies my current composition is not right
+ - ... but what do we do with the initial states?
+  - initially the kbpTest is false?
+ - alternative: partially-order the automata ala constructivity
+  - if we can't do that, blow up
+  - if we can, we need to perserve that order when building the automata
+  - what happens in initial contexts?
+  - how about observing your own kbit?
+
+** Tests
+
+Go over all the MuddyChildren variants.
+ - the clock ones are a bit tricky
+
+K 040: model one of the agents leaking the key.
+ - better yet, collaborating on leaking the key.
+
+Hook the applications into the tests somehow.
+ - we want all the apps to compile but only want to test some of them ??
+
+02_SequentialCircuits/006_delay_init_rec is not healthy
+ - we can't tell the difference between "proper" non-deterministic
+   initialisation and "accidental" via loop.
+ - ... but why are these tests converging?
+ - could add a check to say that the support of the initial bdd can't mention sbdds in delayAC.
+
+Weird: 02_SequentialCircuits/035_delay_rec.hs shows that \/ is somehow stricter than bOR in hBDD / CUDD
+ - this is not obvious from the code.
+ - presumably the optimiser has decided to shuffle the evaluation of the left argument to \/ earlier
+  - and the unsafePerformIO in bOR in CUDD stops the strictness analyzer from thinking bOR is strict. ??
+
+Observe own output bit
+ - mp5: imagine the judge can observe his own output bit
+  - no new info as it is purely a function of what he can observe anyway
+  - check this is true in the clock semantics
+Fishy part is setting the kbits: this involves observations of other kbits that are presently arbitrary.
+ - this should work for Clock.
+ - SingleSPR and BroadcastSPR should either work or can be adapted ??
+
+nondetInstAC
+ - SPR: I know the bit, I don't, depending on the newA.
+ - kbpTest as an initialiser looks very flakey
+  - imagine several of them: the set of initial states may change as the kbpTests are evaluated.
+  - find an example where this happens
+
+-- FIXME: how does the KBP stuff behave in a recursive context?
+-- FIXME kauto bits can be observed by other agents, if they are nested.
+-- Making it observable seems to break things though. Requires more thought.
+
+-- An R/S (reset/set) flip-flop.
+-- Should be constructive except when R = S = 1. FIXME verify
+cc50 =
+    let
+      arrow = proc ((r, s), (o1, o2)) ->
+                do o1' <- notA <<< or2 -< (r, o2)
+                   o2' <- notA <<< or2 -< (s, o1)
+                   returnA -< ((o1', o2'), (o1', o2'))
+     in combLoop arrow
+
+025_shiple_berry_touati: refine constructivity test
+
+- await
+- loopE_
+- FIFO
+- Simone arbiter
+- MacMillan arbiter
+- adhoc.old
+
+An unsafe loop (whatever example Berry has)
+
+Think about this surface/depth stuff.
+ - how do we know we got the indices right?
+ - code up examples where it matters
+
+Berry p33
+
+Arithmetic:
+ - auxiliary instances: delay, mux, ...
+ - simulation instances
+
+Test the KBP machinery in recursive contexts
+
+** Puzzles
+
+Smullyan in TPTP.
+ - is the temporal behaviour actually important?
+  - for the lady or the tiger, if we include the extra information in
+    the initial state, do we still get a solution?
+ - MetaPuzzle1: should work with the clock semantics too
+ - MetaPuzzle3: write an atemporal variant ala 2. Does it work?
+ - observe that none of these puzzles involve nested knowledge.
+
+TheLadyOrTheTiger demonstrates an interesting problem for broadcast
+ - if the world is invariant, asking "K p" and just remembering the
+   truth of p from iobs have a very different cost
+  - the first requires uselessly splitting the current world against
+    the king's observation
+  - the second is direct.
+This makes a case for simply remembering the initial observation and
+passing it in with the current common observation. The algorithm
+doesn't change much. We just get rid of all the zero stuff.
+
+** Misc
+
+Using Data.HashTable rather than Data.Map is not as much of a win as I
+hoped.
+ - possibly faster
+ - dominated by memory contention
+ - only 10% or so memory saving
+ - the hash function sucks.
+Try to figure out how to further reduce memory consumption.
+ - add stats functions for hBDD/CUDD and hDFA.
+
+Explicit-state construction
+ - probably wins for SandP
+ - motivates the simulation interpretation
+ - not too hard to adapt the code from the Isabelle proofs
+ - might lead to a more principled treatment of nondet
+ - good for benchmarking anyway
+
+Can we interleave construction and bisim reduction?
+ - Kai: need to use a BFS then
+ - does the algorithm care about future transitions?
+  - if so, we need to distinguish frontier states
+ - need to extract the state mapping from the minimisation algorithm
+  - FIXME what's going on there?
+ - heuristic for applying reduction
+  - don't really care, it would be more efficient in time to use an online algorithm
+  - it makes sense to do it once we have a certain number of nodes
+  - not so different to when a BDD package triggers reordering
+
+StructureInst: not all bit patterns are valid for all types.
+ - extend Inst so that it takes a predicate or something
+
+Verify automata minimisation is idempotent.
+
+CUDD: group the variables? What's the problem?
+ - try to check that it does something.
+
+Improve the strictness of adding automata to the model.
+
+Sort out the two dot functions: NetList, ExplicitStateAutomata
+
+The stuff in the Burch/Clarke/Long/McMillan/Dill SMV paper in
+~/papers/ModelChecking might be useful for the partitioned story.
+
+Maybe incorporate exceptions/writer in the arrows to report errors.
+
+Try to remove BDD from RenderInState. What can we replace it with?
+Exposing ADHOC.Constructivity is not safe
+ - express this how?
+ - need to allow some access to it so that users can use their own ADTs.
+  - have an "ADHOC.Internals" export.
+
+Expose SeqA? What's wrong with doing that?
+
+Look into using other DDs in CUDD to handle the multiplier
+ - maybe there's some useful stuff there for arithmetic in general
+ - also might help us with the knowledge things too.
+
+Test the SyncFun arithmetic implementations.
+
+Test the Patterns functions more.
+ - especially in recursive contexts.
+ - the Arithmetic StructureInst instances look tricky
+
+Generalise combLoop ala ArrowMux etc.
+
+Turn Robot and MC into executables?
+ - TBC only works for libraries?
+
+Sort out the imports story
+ - add ADHOC.Knowledge and export all K-semantics ??
+ - roll NonDet into the top-level?
+
+Fix up the haddock / comments / ...
+
+Investigate a literate Haskell rendition of this.
+
+Clean up NetList / ConstantFolding
+ - ConstantFolding needs two things: a semantics to reduce against
+   (e.g. the simulate arrow) and one to remainder to (e.g. net lists)
+  - could bake the former into the ConstantFolding arrow, or
+    parameterise it by two semantics
+
+Clean up Generics (mostly done)
+ - FIXME see what GHC's type-level nats do. Write some notes
+
+Clean up Circuits (commit to more things, comments)
+Clean up Constructivity (we're only taking fixpoints at B (~>) now)
+Revive more tests
+
+Write more tests for ConstantFolding.
+
+Revive GHCi in Emacs
+
+ghci -fglasgow-exts -XArrows -XNoMonomorphismRestriction -XNoImplicitPrelude -package ADHOC Tests/00_Circuits/000_id.hs
+
+:set -fbreak-on-exception
+:trace dot (runNL (runNL' (runCF c)))
+:hist
+
+- lazy list simulation semantics
+- Kesterel
+- model checking
+
+** Model Checking
+
+Need to turn non-bool variables into propositions
+ - we could provide instances of the CArrow-related types at (->)
+  - but then we must make sure that what's happening in arrow land
+    cannot use these instances. This might not be possible.
+  - Pretty sure we can make this work for CArrow's B instance
+  - What about arithmetic?
+
+** Constant Folding
+
+Use GADTs and tagging to get a compositional constant folding setup.
+
+How is this going to work? If we use command combinators everywhere we
+can analyze our arguments when constructing the circuit graph.
+
+** General implementation issues
+
+Can we add a lazy list interpretation?
+ - arrows of type [a] -> m [b]
+ - would show the CIStreams are not essential
+  - options: fusion, compilation scheme to C
+ - could adjust the Coutts et al fusion framework to handle it?
+ - careful: John's AFP paper says we're in trouble if lists have varying lengths.
+
+Add a "reset" operator (if useful).
+
+Detect if "loop" is used unsafely.
+ - similar to the current combLoop checker
+ - can it be exact?
+
+*** Numeric types
+
+ - can't always float them to the top: consider a timer that goes off
+   every /n/ ticks. The counter type is not present in the interface.
+  - well, it depends how it's parameterised: if it is, then the type
+    is there. If not, then the user knows how many bits it takes to
+    represent. We could provide support for figuring that out.
+ - we could parameterise them by the arrow, e.g. "Num8 (~>)"
+  - but getting (~>) into scope requires a typesig?
+
+Use -XNoImplicitPrelude and say "import ADHOC" or "import ADHOC.Basis"
+ - this is due to the irritating design of Control.Category
+   conflicting with the implicit Prelude import
+
+QuickCheck does a terrible job with this type, so we use an
+enumeration.
+-- newtype SimBool = SB (Maybe Bool)
+--     deriving (Arbitrary, Eq)
+
+Add ArrowError, ArrowCircuit (= depends on all circuit classes) classes.
+
+Constructivity
+
+ - why not have two separate computations, rather than this TwoRails
+   palaver and tuple spaghetti?
+  - we get more sharing this way ? cf negation
+
+ - could we use the ST monad for the fixpoint computation?
+  - tricky as it interacts with computation in the underlying arrow
+
+ - try to ape CIStreams closely
+
+Can we handle open circuits? yes, we do.
+   - using openly-initialised delays gives us a grip on open systems
+- more suitable logic than CTL?
+ - something that handles open systems
+  - we could just existentially quantify out the inputs
+   - i.e. implicitly compose with chaos.
+  - who's done this sort of thing? Lustre? Esterel? circuits people?
+-- Model checking open systems ("module checking", Vardi, Kupferman)
+-- is a harder problem.
+-- The quickest hack to get things moving is to assume that the system is
+-- closed, and associate "outputs" with the "current" state.
+
+Try to do a better job of computing fixpoints, i.e. order them
+better. See Berry et al, Bourdoncle, Hanken et al Static Analysis.
+
+** Generics
+
+Clearly separate structural (functorial) combinators from the basic ones
+ - mixed bag, but an essential problem
+ - two types, in conflict:
+
+Structural generics:
+
+instance (ArrowCombLoop (~>) d, ArrowCombLoop (~>) e) => ArrowCombLoop (~>) (d, e) where
+    combLoop f = proc b ->
+                   (| combLoop (\d ->
+                    (| combLoop (\e ->
+                         arr assoc <<< f -< (b, (d, e)) ) |) ) |)
+        where assoc (x, (y, z)) = ((x, y), z)
+
+Polymorphically generic:
+
+instance (ArrowApply (~>), ArrowChoice (~>), Fix r)
+      => ArrowCombLoop (SyncFun (~>)) r where
+
+Problem with NetList: we don't always reduce everything to
+bits. What's the story there?
+
+** Kesterel
+
+Use the ST monad rather than (->) for "pure" interpretations.
+ - add/find an IORef abstraction (done)
+ - work out the details of why it doesn't fit with the type classes
+   and resolve this.
+runST encapsulation typing problem
+
+Handle unsafe loops.
+
+The idea is to handle data by passing values through the Esterel
+commands. This is unintuitive because:
+ - synchrony/circuitry: we evaluate the entire program every instant,
+   so every value must be present at every instant.
+  - could adopt a Lustre-like approach here: if the statement is not
+    executed in an instant then its corresponding data is:
+   - garbage, reject the program.
+   - use a default value.
+   - go into a bypass mode, out = in
+    - problem is monomorphisation of everything
+  - could try to superimpose dataflow on top of the imperative model
+   - all statements have a dataflow and imperative semantics
+   - no problem except for presentE: when is a signal present?
+    - complicated by reincarnation issues.
+Look at COMPILING ESTEREL and Schneider's proposals.
+
+If we take this environment-passing model seriously, then we need to
+overhaul all the combinators.
+ - each has to accept and pass along the environment
+ - throwE, etc. need to be carefully constructed
+ - almost everything becomes a command combinator
+
+Moreover we run into trouble with Berry's solution to schizophrenia:
+do we have an environment for each level, or just one?
+ - can we make any use of the former?
+  - do we need value recursion?
+  - makes it easier to make sense of sig2bool ??
+ - if we go the latter way, ifE/presentE must use the appropriate
+   level 'go' signal / test to switch the environment.
+
+Implement Signals, Exceptions? using references
+ - how does this interact with environment passing?
+ - say we have valued signals (values forming a group or monoid or whatever)
+  - how do we make use of the value?
+   - signalE could yield it, paired with the returned environment.
+   - throw it away, it's a local signal.
+   - user can explicitly project the value and return it from the scope.
+ - pros: the state gets smaller
+
+Circuit translation
+ - every subcircuit needs to set or unset all exception and signal wires
+  - optimise that with a lightweight static analysis.
+
+Signals: references, in-state, lambda-bound, arrow-bound, ...
+ - start with lambda-bound, represented in the state.
+ - want exported Signal type to have no type class instances (for safety).
+-- FIXME We'd like to use the 'runST' trick to ensure signals don't
+-- slip their scopes, but the arrow command syntax doesn't support it.
+-- The translation expects a type of the form "a b c",
+-- and not "forall s. a (b s) c".
+--
+-- The environment threading is too valuable to give up, so let it go
+-- for now. Also a problem for exceptions.
+--
+-- FIXME With reincarnation it is difficult to judge, from outside its
+-- scope, if a signal has been emitted in a given instant. Write a
+-- test.
+--
+-- We could make signal scopes static, i.e. lambda-bound.
+--  pros: runST trick works
+--        we need to know at what depth the signal is defined.
+--  cons: not as flexible, cannot multiplex signals at runtime.
+--        probably not such a great idea anyway.
+
+Arrows hacking
+
+- look into Ross/Bird's De Bruijn paper for representing signal environments
+ - perhaps subsumed by the IORef trick
+- use IORefs + Lennart's tricks for signals.
+- atomise the stream arrows stuff
+ - define an arrow transformer?
+ - can we toss the initial states?
+ - yes to both, hopefully.
+- probably need to introduce "parameterised arrows" ala monads.
+ - relate what we've ended up with to Ross's standard arrow classes
+- compare the Arrows interface with Caspi/Pouzet
+ - proc v co_lambda
+ - can we define recursive networks, e.g. sieve of eratosthenes?
+
+Comparative semantics
+
+1. CIStreams v Ross's automaton
+ - use an existential to hide the internal state
+ - use State to start with empty states that, from the second instant, have constant shape
+
+2. Refine CIStreams:
+ - can we statically know the shape of the state?
+
+3. Define a useful higher-order combinator
+ - probably not ArrowApply, it's too powerful
+ - something like a fold
+ - idea is to internalise the recursion combinator, so we can generate structured descriptions for
+   Isabelle (etc)
+  - OK, one option is to overload fold and get on with it.
+
+Look into the semantics of ArrowLoop (traced categories, relation to
+Launchbury et al MonadFix). My ArrowCombLoop is very similar, but the
+axioms are a bit different as we iterate effectful arrows.
+
+Haskell: use HsJudy to maintain the visited set / map
+http://hackage.haskell.org/package/HsJudy
+This introduces some memory management problems: HsJudy needs to keep the BDDs alive...
+
+** Example from Tim's thesis:
+
+loop
+  present I then pause end ; V : = V + 1
+||
+  pause
+end loop
+
+If I is present initially, then the program pauses in both parallel
+branches. In the next reaction, the variable V is incremented and the
+loop restarts instantaneously. If I is now absent then V will be
+incremented a second time before the reaction ends.
+
+* Resolved
+
+Avoid using Wouter's "Stream" package as it doesn't handle finite
+lists, which are handy for tests in GHCi.
+ - Ross's fix is to have a "partialRun" function (add "take (length
+   input)"), which doesn't uniformly handle infinite lists.
+ - conversely we'd like to use it to conform with the ArrowAddStream
+   transformer class.
+ - look into it's definition and what it buys us.
+ABANDONED: lazy lists are exactly what we want.
+
+fixA explicitly iterates the argument arrow /f/, so any effects /f/
+might have get done multiple times.
+ - ... but this is exactly what we need.
+ - cook up an example and show that it is entirely natural.
+ - optimise fixA for flat domains
+  - if x /= bottom, then done, no need to check f x.
+  - look into Kurshan's observation: any fixpoint will do, so we can
+    construct a formula rather than compute a fixpoint.
+   - the problem is his approach does not yield an equivalent acyclic circuit.
+   - also try to keep data out of the fixpoint process.
+
+Intuitively combLoop is only useful to control circuits, not data
+(non-boolean types). Data operations are generally strict, and the
+data domains are flat (necessarily?), implying that recursive
+definitions of data must go via delay elements.
+
+Ergo lifting combLoop entails just lifting it to structured types,
+i.e. tuples/records but not arithmetic.
+
+Drop the template haskell dependency.
+ - try to use the Generic Classes mechanism or type functions.
+  - Generic Classes: http://www.haskell.org/ghc/docs/latest/html/users_guide/generic-classes.html
+
+** Initialisers
+
+Why do we need initial and recurring arrows?
+ - we don't.
+ - alternative: tell the arrow if it is in an initial or recurring context.
+  - can optimise a bit too, e.g. a delay in an initial context can be
+    discarded.
+  - ... so the static info is also a function of whether the delay is in an initial context or not.
+  - does this also solve the nondet initialisation problem?
+
+observe that these then have different behavior:
+
+proc env ->
+  x < initA -< env
+  y <- (| delayAC (returnA -< x) (...) |)
+
+proc env ->
+  y <- (| delayAC (initA -< env) (...) |)
+
+In the first we get a runtime value x only. In the second we get the
+code we're going to run... this is I guess what I meant by "command
+combinators are optimisable". Thus the "initial context" stuff isn't
+going to be strong enough to fuse a nondet combinator and delayAC.
+
+nondetInstAC is a bit weird: it brings the relational world into the
+functional/circuits universe. I guess nondet does anyway.
+
+*** In concert with KBPs.
+
+Concern:
+ - assume a Kauto outBit is part of an agent's (initial) observation.
+  - when we partition the initial states, it has an arbitrary value.
+ - write a test:
+  - at time 0, agent observes constant non-det bit
+  - at time n, agent observes nothing
+  and vice-versa.
+FIXME
+try a non-det boot and verify that it works.
+the worry is that we need both initial and recurring observations
+also try an initial observation with a kbpTest bit
+
+Probes
+ - think about allowing code for probes
+  - i.e. lift an arrow that dynamically maps an ID to a BDD and so forth.
+  - the idea is it is cheap to construct cubes representing numbers
+    but we don't want to hang on to 2^n probes unnecessarily.
+ - seems that knowsHat does the job
+  - but perhaps not for model checking (shrug)

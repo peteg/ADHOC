@@ -1,0 +1,293 @@
+{-# LANGUAGE Arrows, FlexibleContexts, NoMonomorphismRestriction, ScopedTypeVariables, TypeOperators, TypeFamilies #-}
+{- A broadcast combinator and delayed signals for Kesterel.
+ - Copyright   :  (C)opyright 2012 peteg42 at gmail dot com
+ - License     :  GPL (see COPYING for details)
+-}
+
+module Broadcast
+       ( arbitratedBus
+       , registerE, register_delayedE
+       ) where
+
+-------------------------------------------------------------------
+-- Dependencies.
+-------------------------------------------------------------------
+
+import Prelude hiding ( (.), id )
+
+-- Difficult to re-export from Kernel as we want to use it qualified.
+import Data.Sequence ( Seq, (><), (|>), ViewR(..) )
+import qualified Data.Sequence as Seq
+import qualified Data.Foldable as F
+
+import ADHOC hiding ( tt )
+
+import ADHOC.Control.Kesterel
+import ADHOC.Control.Kesterel.Kernel
+
+whenE' c t = ifE' c t nothingE
+
+-------------------------------------------------------------------
+
+{-
+-- | A register.
+--
+-- Some attempt at data abstraction: split the cell
+-- into write and read capabilities.
+--
+-- reset takes precedence over set if both are present.
+registerE :: (EC (~>), ArrowProbe (~>) (B (~>)))
+          => ProbeID
+          -> ((E (~>) () (),
+               E (~>) () (),
+               E (~>) () () -> E (~>) () () -> E (~>) () ())
+              -> E (~>) () ())
+          -> E (~>) () ()
+registerE pid f = signalE $ \(reg_set, reg_reset, reg_val) ->
+        probeSigE pid reg_val
+    >>> ( (loopE $ whenE reg_set
+                     (loopE_ $ \exn -> presentE reg_reset (throwE exn) (emitE reg_val) >>> pauseE)
+               >>> pauseE)
+       ||||
+          f (emitE reg_set, emitE reg_reset, presentE reg_val) )
+-}
+
+-- | The guts of a register.
+--
+-- This uses a single delay, which is more efficient than we can
+-- manage in stock Esterel.
+--
+-- reset takes precedence over set if both signals are present.
+--
+-- FIXME ignores most of the control inputs, e.g. suspension, kill,
+-- etc. Unclear that we really want to respond to them anyway.
+register_primE :: (EC (~>), ArrowProbe (~>) (B (~>)))
+               => ProbeID -> Bool
+               -> ((Signal, Signal, Signal) -> E (~>) c ())
+               -> E (~>) c ()
+register_primE pid delayed fE = E $
+  do s <- readEnvM
+     let [set_id, reset_id, val_id] = [sigID s .. sigID s + 2 ]
+         s' = s{sigID = sigID s + 3}
+     f <- inEnvEM s' (unE (fE (Signal set_id, Signal reset_id, Signal val_id)))
+     return $ proc (cin, ienv, c) ->
+       do ff <- falseA -< ()
+          (| (combLoopF (fromInteger 3)) (\s_vals ->
+               do (f_cout, f_env, d) <- f -< (cin, ienv{eSigs = eSigs ienv >< s_vals}, c)
+                  let (penv, s_vals') = sigID s `Seq.splitAt` eSigs f_env
+                      oenv = f_env{eSigs = penv}
+                      [set, reset, f_val] = F.toList s_vals'
+                  rec val <- (| delayAC (returnA -< ff) (returnA -< val') |)
+                      val' <- ( (notA -< reset) `andAC` ( (returnA -< set) `orAC` (returnA -< val) ) )
+                  -- FIXME Silently discard f's abuse of val (if any) ??
+                  -- val'' <- orA -< (if delayed then val else val', f_val)
+                  let val'' = if delayed then val else val'
+                  let s_vals'' = Seq.fromList [set, reset, val'']
+                  probeA pid -< val''
+                  returnA -< ((f_cout, oenv, d), s_vals'') ) |)
+
+-- | A register.
+--
+-- Note that @reset@ takes precedence over @set@ if both are present.
+registerE :: (EC (~>), ArrowProbe (~>) (B (~>)))
+          => ProbeID
+          -> ((Signal, Signal, Signal) -> E (~>) () ())
+          -> E (~>) () ()
+registerE pid f = register_primE pid False f
+
+-- | The guts of a "delayed" register. Same as "registerE" but
+-- the @set@/@reset@ actions are delayed by an instant.
+register_delayedE :: (EC (~>), ArrowProbe (~>) (B (~>)))
+          => ProbeID
+          -> ((Signal, Signal, Signal) -> E (~>) () ())
+          -> E (~>) () ()
+register_delayedE pid f = register_primE pid True f
+
+-------------------------------------------------------------------
+
+-- | Delay and loop over a vector of signals.
+delayLoopF :: (ArrowLoop (~>), ArrowComb (~>), ArrowDelay (~>) r)
+           => Integer
+           -> env ~> r
+           -> (env, Seq r) ~> (c, Seq r)
+           -> env ~> c
+delayLoopF k0 initA f = proc b ->
+    do i <- initA -< b
+       (c, _) <- cl k0 -< (i, b, Seq.empty)
+       returnA -< c
+  where
+    cl 0 = arr (\(_i, b, xs) -> (b, xs)) >>> f
+    cl k = proc (i, b, xs) ->
+      do rec x <- delayA -< (i, x') -- FIXME shuffling the delay within this loop leads to deadlocks. Something is too strict.
+             ~(c, d) <- cl (k - 1) -< (i, b, xs |> x)
+             let (xs' :> x') = Seq.viewr d
+         returnA -< (c, xs')
+
+-------------------------------------------------------------------
+
+{-
+
+A bus takes "agent" and "environment" Kesterel processes and composes
+them in parallel. The "environment" sees the signal environment
+generated by the "agent" process in the same instant as in the KBP /
+interpreted systems model. These "bus signals" are fed back through a
+delay.
+
+This is the top level, so the termination behaviour of the processes
+is ignored.
+
+As these "bus signals" (delayed signals) use the same mechanisms as
+standard Kesterel signals, we use the same type.
+
+FIXME we want to add signals private to the environment: we can use
+the delays introduced here for their state.
+
+-}
+
+bus :: forall (~>) env b c v.
+        (EC (~>), Structure Signal v)
+     => (v -> (E (~>) env b, E (~>) b c)) -- (processes, environment)
+     -> env ~> c
+bus fgE = proc env ->
+  do boot <- isInitialState -< ()
+     ff <- falseA -< ()
+     tt <- trueA -< ()
+     let cin = Cin { ciGo = boot
+                   , ciRes = tt
+                   , ciSusp = ff
+                   , ciKill = ff
+                   }
+     (| (delayLoopF width falseA) (\s_vals ->
+           do (_f_cout, f_env, b) <- f -< (cin, Esigs {eSigs = s_vals}, env)
+              (_g_cout, g_env, c) <- g -< (cin, f_env, b)
+              oenv <- combine_envs s0 -< (f_env, g_env)
+              returnA -< (c, eSigs oenv) ) |)
+  where
+    width = c2num (undefined :: SIwidth Signal v)
+
+    sids = [0 .. fromInteger width - 1]
+    (v, _xs) = runStateM structure (map Signal sids)
+
+    s0 = Static {exnID = 0, sigID = fromInteger width}
+
+    (fE, gE) = fgE v
+    f = runEnvM (unE fE) s0
+    g = runEnvM (unE gE) s0
+
+{-
+
+We compose the "agent" processes in parallel using the broadcast
+combinator in the underlying Arrow. Their termination behaviour is
+ignored. The common observation is just the (uniform) signal
+environment and control inputs. The agents actions are the outgoing
+signal environments.
+
+-}
+
+broadcastE' :: forall (~>) env ienv iobs size.
+              (ArrowInit (~>),
+               ArrowBroadcast (~>) iobs (Cin (B (~>)), Esigs (B (~>))),
+               EC (~>), Card size)
+           => (SizedList size (AgentID, ienv ~> iobs, E (~>) iobs ()))
+           -> (env ~> ienv)
+           -> E (~>) env ()
+broadcastE' agents ienvA = E $
+  do s <- readEnvM
+     agents' <- sequenceSL (mapSL mangleArrs agents)
+     return $ proc (cin, sig_env, env) ->
+       do c <- (| (broadcast agents')
+                    (ienvA -< env)
+                    (returnA -< (cin, sig_env)) |)
+          ff <- falseA -< ()
+          sig_env' <- foldr1SL (combine_envs s) -< c
+          isNotInit <- notA <<< isInitialState -< ()
+          returnA -< ( Cout { coSelected = isNotInit
+                            , coTerminated = ff
+                            , coPaused = ciGo cin
+                            , coExns = Seq.empty }
+                     , sig_env'
+                     , () )
+  where
+    mangleArrs (aid, iA, E eAM) =
+      do eA <- eAM
+         let eA' = proc (iobs, (cin, env)) ->
+                     do (_cout, oenv, _) <- eA -< (cin, env, iobs)
+                        returnA -< oenv
+         return (aid, iA, eA')
+
+-- | Some of the time we don't have an initial observation.
+broadcastE :: forall (~>) size.
+              (EC (~>),
+               ArrowBroadcast (~>) () (Cin (B (~>)), Esigs (B (~>))),
+               Card size)
+           => SizedList size (AgentID, E (~>) () ())
+           -> E (~>) () ()
+broadcastE agents = broadcastE' agents' unitA
+  where
+    agents' = mapSL (\(aid, f) -> (aid, unitA, f)) agents
+
+{-
+
+We need to arbitrate the use of the bus. "Agent" processes may need
+access for several successive instants. Moreover they may rescind
+their request before being allowed to use the bus.
+
+Example: a cache read miss happens in the same instant as a cache
+write through, with the latter granted access to the bus. Then the
+read miss is satisfied by the write through, but we only know that
+a few cycles after the bus request is made.
+
+This is somewhat of a "true concurrency" problem.
+
+-}
+
+arbitratedBus = runOpt . arbitratedBus'
+
+-- | An arbitrated bus.
+arbitratedBus' :: (Card size, EC (~>), ArrowProbe (~>) (B (~>)), Structure Signal v,
+                   ArrowBroadcast (~>) () (Cin (B (~>)), Esigs (B (~>))))
+               => (v -> ( E (~>) () ()
+                        , SizedList size (AgentID, (Signal, Signal) -> E (~>) () ())
+                        , E (~>) () ()))
+               -> () ~> ()
+arbitratedBus' procs = bus $ \(req_ackSL, v) ->
+  let (probes, agentPs, envP) = procs v
+      agents = zipWithSL (\((aid, agentP), req_ack) -> (aid, agentP req_ack))
+                         (agentPs, req_ackSL)
+   in ( probes >>> broadcastE agents
+      , cells req_ackSL |||| envP)
+
+cells :: (Card size, EC (~>), ArrowProbe (~>) (B (~>)))
+      => SizedList size (Signal, Signal)
+      -> E (~>) () ()
+cells req_ackSL = signalE $ \(gtSL, active) ->
+  let csSL = zipWithSL (cell active)
+                       ( zipWithSL id (gtSL, rotateSL gtSL)
+                       , req_ackSL)
+      g0 : _ = unSizedListA gtSL
+      -- Generate the initial token: sustain grant until something is active.
+      cell_init = loopE_ $ \exn -> emitE g0 >>> whenE active (throwE exn) >>> pauseE
+   in foldr (||||) cell_init (unSizedListA csSL)
+
+-- | An arbiter cell.
+--
+-- "active" is an Esterel signal. It indicates an arbiter has claimed the token.
+cell :: (EC (~>), ArrowProbe (~>) (B (~>)))
+     => Signal -> ((Signal, Signal), (Signal, Signal))
+     -> E (~>) () ()
+cell active ((grantIn, grantOut), (requestIn, ackOut)) =
+    -- probeSigE "gin" grantIn >>>
+    loopE (body >>> body) -- FIXME reincarnation when throwing exn.
+  where
+    body = catchE $ \exn ->
+     whenE grantIn -- No grantIn, do nothing.
+      (presentE requestIn
+        (    (loopE_ $ \exn' ->
+                   emitE ackOut >>> emitE active
+               >>> pauseE
+               -- >>> probePauseE "gt"
+               >>> presentE requestIn nothingE (throwE exn'))
+         >>> (loopE (emitE grantOut >>> (whenE' (sigE requestIn ∨ sigE active) (throwE exn)) >>> pauseE {-probePauseE "st"-})) )
+        (emitE grantOut))
+     >>> pauseE
+--      >>> probePauseE "idle"

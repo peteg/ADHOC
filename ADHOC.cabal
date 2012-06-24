@@ -1,0 +1,53 @@
+Name: ADHOC
+Version: 0.1.0
+Cabal-version: >= 1.6
+Build-type: Simple
+Copyright: Peter Gammie
+Maintainer: peteg42@gmail.com
+Author: Peter Gammie
+Homepage: http://peteg.org/circuits-and-knowledge/
+License: GPL
+License-file: COPYING
+Synopsis: Arrows for Describing Higher-Order Circuits
+Category: Hardware
+Description:
+
+ ADHOC is a collection of tools for describing and analyzing
+ knowledge-based circuits.
+
+Extra-Source-Files: AGENDA Tests/*.hs Tests/*/*.hs
+
+Library
+  Build-depends: arrows >= 0.4, array, base >= 2 && < 5, containers, hBDD, hDFA, hBDD-CUDD, mtl >= 2 && < 3, pretty >= 1 && < 2, QuickCheck >= 2 && < 3, TBC
+  Extensions: Arrows, BangPatterns, EmptyDataDecls, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GADTs, GeneralizedNewtypeDeriving, MultiParamTypeClasses, NoMonomorphismRestriction, Rank2Types, ScopedTypeVariables, TypeFamilies, TypeOperators, TypeSynonymInstances
+  Ghc-options: -Wall -fno-ignore-asserts
+  Exposed-Modules:
+    ADHOC
+    ADHOC.Internals
+    ADHOC.NonDet
+    ADHOC.Patterns
+    ADHOC.Control.Kesterel
+    ADHOC.Control.Kesterel.Kernel
+    ADHOC.Data.Arithmetic
+    ADHOC.Data.ArithmeticCircuits
+    ADHOC.Knowledge
+    ADHOC.ModelChecker.CTL
+    ADHOC.ModelChecker.CounterExamples
+    ADHOC.ModelChecker.Knowledge
+  Other-modules:
+    ADHOC.Basis
+    ADHOC.Circuits
+    ADHOC.Optimise
+    ADHOC.Constructivity
+    ADHOC.Generics
+    ADHOC.Model
+    ADHOC.NetList
+    ADHOC.Simulate
+    ADHOC.TruthTable
+    ADHOC.Data.SizedLists
+    ADHOC.Knowledge.ExplicitStateAutomata
+    ADHOC.Knowledge.BroadcastSPR
+    ADHOC.Knowledge.BroadcastSPRII
+    ADHOC.Knowledge.Hash
+    ADHOC.Knowledge.Clock
+    ADHOC.Knowledge.SingleSPR

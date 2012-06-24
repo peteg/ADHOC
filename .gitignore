@@ -1,0 +1,15 @@
+# Operating system junk
+.DS_Store
+
+# Cabal temporary locations
+dist/
+
+# Build output
+*.hi
+*.o
+*.prof
+
+# Executables
+Apps/SandP/SandP_circuits_dialogue
+
+*junk*

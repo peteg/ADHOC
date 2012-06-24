@@ -1,0 +1,25 @@
+Name: SandP
+Version: 0.1.0
+Cabal-version: >= 1.6
+Build-type: Simple
+Copyright: Peter Gammie
+Maintainer: peteg42@gmail.com
+Author: Peter Gammie
+Homepage: http://peteg.org/circuits-and-knowledge/
+License: GPL
+Synopsis: Classic Mr S and Mr P example
+Description:
+  The Mr S(um) and Mr P(roduct) puzzle analysed by McCarthy and van
+  Ditmarsch, Ruan, Verbrugge.
+
+Executable SandP_circuits
+  Build-depends: base >= 3 && < 5, ADHOC
+  Extensions: Arrows, EmptyDataDecls, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, NoImplicitPrelude, NoMonomorphismRestriction, Rank2Types, ScopedTypeVariables, TypeFamilies, TypeOperators, TypeSynonymInstances
+  Ghc-options: -Wall
+  main-is: SandP_circuits.hs
+
+Executable SandP_circuits_dialogue
+  Build-depends: base >= 3 && < 5, ADHOC
+  Extensions: Arrows, EmptyDataDecls, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, NoImplicitPrelude, NoMonomorphismRestriction, Rank2Types, ScopedTypeVariables, TypeFamilies, TypeOperators, TypeSynonymInstances
+  Ghc-options: -Wall
+  main-is: SandP_circuits_dialogue.hs

@@ -1,0 +1,22 @@
+ADHOC is an EDSL for describing synchronous systems. Its chief
+novelties are:
+
+- the use of Arrows
+- support for combinationally-cyclic circuits
+- support for knowledge conditionals
+- a version of Gerard Berry's Esterel language
+
+It also contains a simple model checker and counterexample generator
+for CTL (and a simple semantics for knowledge).
+
+* Building
+
+Building ADHOC is easy once the dependencies are installed.
+
+runghc Setup configure --user -p --enable-library-profiling --ghc-option=-auto-all --ghc-option=-caf-all
+runghc Setup build
+runghc Setup install
+
+* License
+
+ADHOC is licenced under the GPL. See the COPYING file.

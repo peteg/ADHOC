@@ -1,0 +1,32 @@
+Name: Cache
+Version: 0.1.0
+Cabal-version: >= 1.6
+Build-type: Simple
+Copyright: Peter Gammie
+Maintainer: peteg42@gmail.com
+Author: Peter Gammie
+Homepage: http://peteg.org/circuits-and-knowledge/
+License: GPL
+Synopsis: Cache protocols
+Description:
+  Synthesis of cache protocols from KBPs..
+
+Library
+  Build-depends: base >= 3 && < 5, ADHOC, containers, QuickCheck >= 2 && < 3
+  Extensions: Arrows, EmptyDataDecls, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, NoImplicitPrelude, NoMonomorphismRestriction, Rank2Types, ScopedTypeVariables, TypeFamilies, TypeOperators, TypeSynonymInstances
+  Ghc-options: -Wall
+  Exposed-Modules: Broadcast
+
+Executable Cache-simple
+  Build-depends: base >= 3 && < 5, ADHOC, containers
+  Extensions: Arrows, EmptyDataDecls, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, NoImplicitPrelude, NoMonomorphismRestriction, Rank2Types, ScopedTypeVariables, TypeFamilies, TypeOperators, TypeSynonymInstances
+  Ghc-options: -Wall -rtsopts
+  main-is: Cache-simple.hs
+  Other-modules: Broadcast
+
+Executable Cache
+  Build-depends: base >= 3 && < 5, ADHOC, containers
+  Extensions: Arrows, EmptyDataDecls, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, NoImplicitPrelude, NoMonomorphismRestriction, Rank2Types, ScopedTypeVariables, TypeFamilies, TypeOperators, TypeSynonymInstances
+  Ghc-options: -Wall -rtsopts
+  main-is: Cache.hs
+  Other-modules: Broadcast

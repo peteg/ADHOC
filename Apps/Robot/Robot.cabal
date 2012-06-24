@@ -1,0 +1,21 @@
+Name: Robot
+Version: 0.1.0
+Cabal-version: >= 1.6
+Build-type: Simple
+Copyright: Peter Gammie
+Maintainer: peteg42@gmail.com
+Author: Peter Gammie
+Homepage: http://peteg.org/circuits-and-knowledge/
+License: GPL
+Synopsis: Classic Robot example
+Description:
+  The robot is a classic simple control problem in the KBP formalism.
+
+Library
+  Build-depends: base >= 3 && < 5, ADHOC, TBC
+  Extensions: Arrows, EmptyDataDecls, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, NoImplicitPrelude, NoMonomorphismRestriction, Rank2Types, ScopedTypeVariables, TypeFamilies, TypeOperators, TypeSynonymInstances
+  Ghc-options: -Wall
+  Exposed-Modules:
+    Robot_clock
+    Robot_spr
+    Robot_spr_broadcast
