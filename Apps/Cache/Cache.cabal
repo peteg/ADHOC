@@ -9,7 +9,9 @@ Homepage: http://peteg.org/circuits-and-knowledge/
 License: GPL
 Synopsis: Cache protocols
 Description:
-  Synthesis of cache protocols from KBPs..
+  Synthesis of cache protocols from KBPs.
+
+  This example needs to be compiled.
 
 Library
   Build-depends: base >= 3 && < 5, ADHOC, containers, QuickCheck >= 2 && < 3

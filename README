@@ -17,6 +17,8 @@ runghc Setup configure --user -p --enable-library-profiling --ghc-option=-auto-a
 runghc Setup build
 runghc Setup install
 
+The applications can also be built using Cabal, or using TBC.
+
 * License
 
 ADHOC is licenced under the GPL. See the COPYING file.

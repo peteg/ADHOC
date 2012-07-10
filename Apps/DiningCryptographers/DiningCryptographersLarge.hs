@@ -31,9 +31,11 @@ import ADHOC.ModelChecker.Knowledge
 -- Scenario
 -------------------------------------------------------------------
 
--- | Three cryptographers.
+-- | How many cryptographers, and how wide the arithmetic needs to be.
+-- type NumAgents = D8 (D0 Sz)
+-- type ArithmeticWidth = D7 Sz
+
 -- type NumAgents = D2 (D5 (D0 Sz))
--- type ArithmeticWidth = D9 Sz -- D1 (D0 Sz)
 type NumAgents = D3 (D0 (D0 Sz))
 type ArithmeticWidth = D9 Sz
 
@@ -103,9 +105,10 @@ test_full_spec =
                           \/ ((dc1 `knows` neg paidNSA)
                            /\ (neg (dc1 `knows_hat` "paid"))))))))
 
+main :: IO ()
 main =
   do -- dynamicReordering ReorderSift -- ReorderStableWindow3 -- ReorderSift -- ReorderStableWindow3
-     _ <- test_netlist
+     -- _ <- test_netlist
      mapM_ print [ test_dc1_paid, test_dc1_not_paid, test_full_spec ]
      bddPrintInfo
      return ()

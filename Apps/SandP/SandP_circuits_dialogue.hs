@@ -7,6 +7,7 @@
  - ghc -O -main-is Main.main -rtsopts -prof -auto-all -caf-all -package ADHOC SandP_circuits_dialogue.hs
  -
  - For some reason ghc 7.0.3 does a terrible job *without* profiling.
+ - However 7.4.1 is OK and the result is faster than with profiling.
  - ghc -O -main-is Main.main -rtsopts -package ADHOC SandP_circuits_dialogue.hs
  - ghci -package ADHOC SandP_circuits_dialogue.hs
  -

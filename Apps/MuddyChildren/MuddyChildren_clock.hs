@@ -4,8 +4,9 @@
  - License     :  GPL (see COPYING for details)
  -
  - ghci -package ADHOC MuddyChildren_clock.hs
- - let (child_1_auto : _, m') = clock m in minimize child_1_auto >>= dot m
- - showCounterExample ctlM true (af (prop ca0))
+ -
+ - dot kautos
+ - test_children_forget
  -
  -}
 module MuddyChildren_clock where
@@ -95,13 +96,13 @@ cprops = environment >>> props
 Just (kautos, m, all_children_say_yes) = clockSynth MinSTAMINA cprops
 ctlM = mkCTLModel m
 
--- The muddiness of the children is constant.
+-- | The muddiness of the children is constant.
 test_muddiness_constant =
     isOK (mc ctlM (conjoin [ ag (p <-> ax p)
                            | i <- [1 .. num_children]
                            , let p = probe (dirtyP i) ]))
 
--- | All children eventually say 'yes'. Not true for the clock semantics?
+-- | All children eventually say 'yes'. Not true for the clock semantics.
 test_children_eventually_say_yes =
     isFailure (mc ctlM (af (prop all_children_say_yes)))
 

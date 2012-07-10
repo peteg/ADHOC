@@ -99,6 +99,7 @@ test_full_spec =
                           \/ ((dc1 `knows` neg paidNSA)
                            /\ (neg (dc1 `knows_hat` "paid")))))))
 
+main :: IO ()
 main =
   do _ <- test_netlist
      mapM_ print [ test_dc1_paid, test_dc1_not_paid, test_full_spec ]

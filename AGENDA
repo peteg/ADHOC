@@ -28,6 +28,17 @@ How about when agents observe the output of kbpTests?
  - ban it?
  - top sort the kconds (fail if we can't) and ensure the algorithms
    respect that?
+Use of the kbpTest bits in the same instant is really dangerous!
+ - maybe build a delay into kbpTest
+  - good, we can eliminate the delays in e.g. the MuddyChildren, smaller model
+ - implies my current composition is not right
+ - ... but what do we do with the initial states?
+  - initially the kbpTest is false?
+ - alternative: partially-order the automata ala constructivity
+  - if we can't do that, blow up
+  - if we can, we need to perserve that order when building the automata
+  - what happens in initial contexts?
+  - how about observing your own kbit?
 
 The arrows can probably use some optimisation
  - associativity?
@@ -42,13 +53,7 @@ Idea: Higher-order circuits
  - add two arrows: abstract and apply
   - can we show it forms a CCC?
 
-Where does Ross use WrappedArrow?
-
-Can determine whether an arrow is det or non-det statically.
- - no need for fancy type trickery
- - maybe the same thing for signal scoping?
-
-- think about bisim reduction
+- think about online bisim reduction
  - feed in an initial partition?
  - ask for the final partition as well as the reduced automaton?
  - what's the payoff?
@@ -56,39 +61,13 @@ Can determine whether an arrow is det or non-det statically.
    - still need to maintain a map from all visited states -> automaton states?
   - does it converge more quickly?
    - can't see how it could, the frontier never gets reduced.
-  - look at Ron's paper/LFCS and try to figure out what he thinks will happen
 
-Can we use the Boolean interface for Arrows?
- - type would be "env ~> B (~>)"
- - problem with quantification of env?
-  - try to track this down
-  - probably need to build GHC head to be sure
-Use Unicode symbols for now.
-
-ADHOC needs to export the pretty printer stuff.
 Pretty up the printing of witnesses and counter examples
  - the user provides a function for printing states?
  - reuse the RenderInState infrastructure
  - include it in the model?
  - print the probes - it's a start, but maybe not enough.
- - indicate loops -- all traces have a single back edge, so just mark where it ends.
 Introduce a PrettyPrint module and condition what the library exports.
-
-Lock down what Circuits exports...
-
-Split Model into internal/public
-
-Use of the kbpTest bits in the same instant is really dangerous!
- - maybe build a delay into kbpTest
-  - good, we can eliminate the delays in e.g. the MuddyChildren, smaller model
- - implies my current composition is not right
- - ... but what do we do with the initial states?
-  - initially the kbpTest is false?
- - alternative: partially-order the automata ala constructivity
-  - if we can't do that, blow up
-  - if we can, we need to perserve that order when building the automata
-  - what happens in initial contexts?
-  - how about observing your own kbit?
 
 ** Tests
 
@@ -547,30 +526,6 @@ i.e. tuples/records but not arithmetic.
 Drop the template haskell dependency.
  - try to use the Generic Classes mechanism or type functions.
   - Generic Classes: http://www.haskell.org/ghc/docs/latest/html/users_guide/generic-classes.html
-
-** Initialisers
-
-Why do we need initial and recurring arrows?
- - we don't.
- - alternative: tell the arrow if it is in an initial or recurring context.
-  - can optimise a bit too, e.g. a delay in an initial context can be
-    discarded.
-  - ... so the static info is also a function of whether the delay is in an initial context or not.
-  - does this also solve the nondet initialisation problem?
-
-observe that these then have different behavior:
-
-proc env ->
-  x < initA -< env
-  y <- (| delayAC (returnA -< x) (...) |)
-
-proc env ->
-  y <- (| delayAC (initA -< env) (...) |)
-
-In the first we get a runtime value x only. In the second we get the
-code we're going to run... this is I guess what I meant by "command
-combinators are optimisable". Thus the "initial context" stuff isn't
-going to be strong enough to fuse a nondet combinator and delayAC.
 
 nondetInstAC is a bit weird: it brings the relational world into the
 functional/circuits universe. I guess nondet does anyway.

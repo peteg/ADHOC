@@ -2,19 +2,17 @@
 {- Synthesis of cache protocols from KBPs.
  - Copyright   :  (C)opyright 2011, 2012 peteg42 at gmail dot com
  - License     :  GPL (see COPYING for details)
-
-This model satisfies "independent initialisation".
-
-A more realistic write-once cache. Flushing is still problematic.
-
-We optimise for bus operations here, not the amount of state the cache
-controller has to maintain per cache line.
-
-FIXME
-
-we can replace the processors with smaller FSMs written in ADHOC - should reduce the state by ~ 4 * 2 bits.
-
--}
+ -
+ - This model satisfies "independent initialisation".
+ -
+ - A more realistic write-once cache. Flushing is still problematic.
+ -
+ - We optimise for bus operations here, not the amount of state the cache
+ - controller has to maintain per cache line.
+ -
+ - FIXME
+ - we could replace the processors with smaller FSMs written in ADHOC - should reduce the state by ~ 4 * 2 bits.
+ -}
 module Main ( main ) where
 
 -------------------------------------------------------------------

@@ -3,11 +3,10 @@
  - Copyright   :  (C)opyright 2009-2011 peteg42 at gmail dot com
  - License     :  GPL (see COPYING for details)
  -
- - ghci -package ADHOC MuddyChildren_spr.hs
- - dot kautos
- -
  - ghc -O -main-is Main.main -rtsopts -prof -auto-all -caf-all -package ADHOC MuddyChildren_spr.hs
+ - ghci -package ADHOC MuddyChildren_spr.hs
  -
+ - dot kautos
  -}
 module MuddyChildren_spr where
 
@@ -30,7 +29,7 @@ import ADHOC.NonDet
 -- Parameters.
 -------------------------------------------------------------------
 
-type NumChildren = Three
+type NumChildren = Three -- Five
 
 num_children :: Integer
 num_children = c2num (undefined :: NumChildren)
@@ -93,7 +92,6 @@ test_muddiness_constant =
                            , let p = probe (dirtyP i) ]))
 
 -- | All children eventually say 'yes'.
--- FIXME verify: this only works for 3 children.
 test_children_eventually_say_yes =
     isOK (mc ctlM (af (probe all_children_say_yesP)))
 
